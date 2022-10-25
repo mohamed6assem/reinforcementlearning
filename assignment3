@@ -1,0 +1,109 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Mon Oct 17 14:34:53 2022
+
+@author: mohaa
+"""
+
+import sklearn as sk
+import numpy as np
+import matplotlib
+import matplotlib.pyplot as plt
+import pandas as pd
+from sklearn.model_selection import train_test_split
+
+#1 Retrieve and load the Olivetti faces dataset [0 points]
+from sklearn.datasets import fetch_olivetti_faces
+# 10 images of 40 distinct subjects each image is 64x64 pixels
+
+faces = fetch_olivetti_faces(return_X_y=True)
+#2 Split the training set, a validation set, and a test set 
+#using stratified sampling to ensure that there are the same 
+#number of images per person in each set. [0 points]
+
+#I used an 80-10-10 split as that seems standard according to documentation. 
+#There seems to be no reason to split 60-20-20
+X_training, X_remainder, y_training, y_remainder = train_test_split(faces[0],faces[1], train_size=0.8, stratify=faces[1])
+
+X_validation, X_test, y_validation, y_test = train_test_split(X_remainder, y_remainder, test_size=0.5, stratify=y_remainder)
+
+#convert test validation and training arrays to dataframe
+y_test = pd.DataFrame(y_test)
+X_test = pd.DataFrame(X_test)
+y_validation = pd.DataFrame(y_validation)
+X_validation = pd.DataFrame(X_validation)
+X_training = pd.DataFrame(X_training)
+y_training = pd.DataFrame(y_training)
+
+y_training.value_counts().sort_index()
+y_test.value_counts().sort_index()
+y_validation.value_counts().sort_index()
+#3 Using k-fold cross validation, train a classifier to predict 
+#which person is represented in each picture, and evaluate it on
+# the validation set. [0 points]
+
+from sklearn import svm
+classifier = svm.SVC()
+from sklearn.model_selection import cross_val_predict
+from sklearn.model_selection import cross_val_score
+cross_val_score(classifier, X_training, y_training)
+
+classifier.fit(X_training, y_training.values.ravel())
+validation_predictions = classifier.predict(X_validation)
+plt.plot(validation_predictions, y_validation.values.ravel(), 'ro')
+from sklearn.metrics import accuracy_score
+accuracy_score(validation_predictions, y_validation.values.ravel())
+
+#4 Using either Agglomerative Hierarchical Clustering (AHC) or 
+#Divisive Hierarchical Clustering (DHC) and using the complete linkage,
+# reduce the dimensionality of the set by using the following similarity 
+#measures:
+#4a) Euclidean Distance [20 points]
+from sklearn.cluster import AgglomerativeClustering
+clustering_euclidean = AgglomerativeClustering(n_clusters=40, affinity='euclidean', linkage='complete').fit(X_training)
+cluster_euclidean = clustering_euclidean.labels_
+
+#4b) Minkowski Distance(p=1) or Manhattan Distance [20 points]
+
+clustering_manhattan = AgglomerativeClustering(n_clusters=40, affinity='manhattan', linkage='complete').fit(X_training)
+cluster_manhattan = clustering_manhattan.labels_
+#4c) Cosine Similarity [20 points]
+clustering_cosine = AgglomerativeClustering(n_clusters=40, affinity='cosine', linkage='complete').fit(X_training)
+cluster_cosine = clustering_cosine.labels_
+#5 Discuss any discrepancies observed between 4(a), 4(b), or 4(c).
+#plot value cluster frequencies
+
+plt.plot(cluster_cosine)
+plt.plot(cluster_euclidean)
+plt.plot(cluster_manhattan)
+#turn clusters into dataframes
+df_cosine = pd.DataFrame(cluster_cosine)
+df_euclidean = pd.DataFrame(cluster_euclidean)
+df_manhattan = pd.DataFrame(cluster_manhattan)
+#plot dataframes
+df_cosine.value_counts().sort_index()
+df_cosine.value_counts().plot.bar(rot=0)
+
+df_cosine.value_counts().sort_index().plot.pie(title="Cosine")
+df_euclidean.value_counts().sort_index().plot.pie(title="Euclidean")
+df_manhattan.value_counts().sort_index().plot.pie(title="Manhattan")
+# Use the silhouette score approach to choose the number of clusters for 4(a), 
+# 4(b), and 4(c). [10 points]
+from sklearn import metrics
+cosine_silhouette_score = metrics.silhouette_score(X_training, cluster_cosine)
+
+
+from yellowbrick.cluster import SilhouetteVisualizer
+fig, ax = plt.subplots(2, 2, figsize=(15,8))
+q, mod = divmod(2, 2)
+
+#clustering_cosine2 = AgglomerativeClustering(n_clusters=2, affinity='cosine', linkage='complete')
+#visualizer_cosine = SilhouetteVisualizer(clustering_cosine2, colors='yellowbrick', ax=ax[q-1][mod])
+for i in [2, 3, 4, 5]:
+    clustering_cosine2 = AgglomerativeClustering(n_clusters=i, affinity='cosine', linkage='complete').fit(X_training)
+    q, mod = divmod(i, 2)
+    visualizer_cosine = SilhouetteVisualizer(clustering_cosine2, colors='yellowbrick', ax=ax[q-1][mod])
+    visualizer_cosine.show()
+    
+#6 Use the set from (4(a), 4(b), or 4(c)) to train a classifier as in (3)
+# using k-fold cross validation. [30 points]
